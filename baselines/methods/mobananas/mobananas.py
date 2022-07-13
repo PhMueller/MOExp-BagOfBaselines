@@ -45,7 +45,8 @@ class BANANAS:
 
         while it < self.iterations:
 
-            it = it + 1
+            it += 1
+
             train_data = [member.return_train_data() for member in self.architecture_list]
             y_train_data = [member.fitness for member in self.architecture_list]
 

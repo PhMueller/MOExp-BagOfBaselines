@@ -42,17 +42,14 @@ class BANANAS:
 
         # [Member.fitness for Member in self.architecture_list]
 
-        self.iterations = (self.num_function_evaluations - self.initial_samples) // (self.select // self.eta)
-
     def steps(self):
 
         it = 0
-        start = time.time()
 
-        # while it < self.iterations:
-        while (time.time() - start < self.max_time):
+        while it < self.iterations:
 
-            it = it + 1
+            it += 1
+
             train_data = [member.return_train_data() for member in self.architecture_list]
             y_train_data = [member.fitness for member in self.architecture_list]
 
