@@ -24,15 +24,17 @@ class BANANAS:
         self.experiment = experiment
         self.initial_samples = initial_samples
         self.neural_predictor = neural_predictor
-        self.fidelity = budget
+        self.fidelity = budget  # dict with {'name': <NAME>, 'limits': [<LOWER>, <UPPER>]
         self.budget = budget['limits'][1]
+
         np.random.seed(0)
         self.select = select_models
 
         self.architecture_list = [
             Member(search_space=self.search_space, mutation=mutation_type, budget=self.fidelity,
                    experiment=self.experiment)
-            for _ in range(self.initial_samples)]
+            for _ in range(self.initial_samples)
+        ]
 
         # [Member.fitness for Member in self.architecture_list]
         self.iterations = (self.num_function_evaluations - self.initial_samples) // self.select
