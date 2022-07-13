@@ -117,10 +117,10 @@ class Neural_Predictor:
     Class to group ensamble of NN
     """
 
-    def __init__(self, num_epochs, num_ensamble_nets):
+    def __init__(self, num_epochs, num_ensemble_nets):
         self.num_epochs = num_epochs
-        self.num_ensamble_nets = num_ensamble_nets
-        self.networks = [Net() for i in range(self.num_ensamble_nets)]
+        self.num_ensemble_nets = num_ensemble_nets
+        self.networks = [Net() for i in range(self.num_ensemble_nets)]
         self.all_architecture = []
 
     def train_models(self, x):
@@ -174,7 +174,7 @@ class Neural_Predictor:
 
     def independent_thompson_sampling(self, mean, predictions_fixed):
 
-        M = self.num_ensamble_nets
+        M = self.num_ensemble_nets
         squared_differences = np.sum(
             [np.square(np.abs(predictions_fixed[i]) - mean) for i in range(len(predictions_fixed))]
         )
@@ -188,7 +188,7 @@ class Neural_Predictor:
         architectures = architectures.copy()
 
         arch_lists = []
-        probs = self.independent_thompson_sampling_for_mo(test_data, architectures, self.num_ensamble_nets)
+        probs = self.independent_thompson_sampling_for_mo(test_data, architectures, self.num_ensemble_nets)
 
         for _ in range(select_models):
             max_index = probs.index(min(probs))

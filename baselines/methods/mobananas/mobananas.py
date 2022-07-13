@@ -16,7 +16,7 @@ class BANANAS:
 
     def __init__(self, neural_predictor, experiment, search_space,
                  initial_samples, num_arch, budget, select_models, function_evaluations,
-                 scale_factor = 1, mutation_type = Mutation.GAUSSIAN):
+                 scale_factor = 1, mutation_type = Mutation.GAUSSIAN, seed=0):
 
         self.num_arch = num_arch
         self.num_function_evaluations = function_evaluations
@@ -27,7 +27,7 @@ class BANANAS:
         self.fidelity = budget  # dict with {'name': <NAME>, 'limits': [<LOWER>, <UPPER>]
         self.budget = budget['limits'][1]
 
-        np.random.seed(0)
+        np.random.seed(seed)
         self.select = select_models
 
         self.architecture_list = [

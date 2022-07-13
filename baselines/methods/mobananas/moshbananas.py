@@ -16,8 +16,8 @@ class BANANAS:
 
     def __init__(self, neural_predictor, experiment, search_space,
                  initial_samples, num_arch, fidelity, eta,
-                 select_models, function_evaluations, max_time,
-                 mutation_type=Mutation.GAUSSIAN):
+                 select_models, function_evaluations, mutation_type=Mutation.GAUSSIAN,
+                 seed=0):
 
         self.num_arch = num_arch
         self.num_function_evaluations = function_evaluations
@@ -31,9 +31,8 @@ class BANANAS:
         self.min_budget = budget['limit'][0]
         self.eta = eta
 
-        np.random.seed(0)
+        np.random.seed(seed)
         self.select = select_models
-        self.max_time = max_time
         self.architecture_list = [
             Member(search_space=self.search_space, mutation=mutation_type,
                    budget=self.fidelity, experiment=self.experiment)
