@@ -1,3 +1,2 @@
-from .core.multiobjective_experiment import MultiObjectiveSimpleExperiment
-from .core.multiobjective_experiment import save_experiment, load_experiment
-from .core.pareto import pareto, nDS, computeHV2D, nDS_index, crowdingDist
+from MOHPOBenchExperimentUtils.utils.experiment_utils import save_experiment, load_experiment
+from MOHPOBenchExperimentUtils.utils.pareto import pareto, nDS, computeHV2D, nDS_index, crowdingDist

@@ -1,11 +1,17 @@
 import enum
 import uuid
 from copy import deepcopy
+
+import ConfigSpace as CS
+from ConfigSpace.hyperparameters import NumericalHyperparameter, CategoricalHyperparameter, OrdinalHyperparameter
+
 import numpy as np
-import pandas as pd
-from typing import Dict, Optional
-from ax import Experiment, Data, GeneratorRun, Arm
+from typing import Dict, Optional, Callable, Union
+from ax import Experiment, GeneratorRun, Arm
 from scipy.stats import truncnorm
+from MOHPOBenchExperimentUtils.utils import adapt_configspace_configuration_to_ax_space
+
+from loguru import logger
 
 
 class Mutation(enum.IntEnum):
@@ -19,13 +25,12 @@ class Member:
     Class to handle member.
     """
 
-
-    def __init__(self, search_space,
+    def __init__(self,
+                 search_space: CS.ConfigurationSpace,
                  mutation: Mutation,
-                 budget = 25,
+                 budget: Dict,
                  experiment: Experiment = None,
-                 x_coordinate: Optional[Dict] = None
-                 ) -> None:
+                 x_coordinate: Optional[Dict] = None) -> None:
         """
         Init
         :param search_space: search_space of the given problem
@@ -46,39 +51,23 @@ class Member:
         self._experiment = experiment
         self._num_evals = 0
 
+        # The authors only consider minimization problems. We have also max problems.
+        self.min_objectives = [target.lower_is_better for target in self._experiment.optimization_config.objective.metrics]
 
-    @property 
+    @property
     def fitness(self):
         if self._x_changed:  # Only if budget or architecture has changed we need to evaluate the fitness.
             self._x_changed = False
 
-
             params = deepcopy(self._x)
-            params['budget'] = int(self._budget)
+            data, metric_names = self._experiment.eval_configuration(
+                configuration=params, fidelity={self._budget['name']: self._budget['limits'][1]}
+            )
 
-            params['n_conv_0'] = params['n_conv_0'] if 'n_conv_0' in params else 16
-            params['n_conv_1'] = params['n_conv_1'] if 'n_conv_1' in params else 16
-            params['n_conv_2'] = params['n_conv_2'] if 'n_conv_2' in params else 16
-
-            params['n_fc_0'] = params['n_fc_0'] if 'n_fc_0' in params else 16
-            params['n_fc_1'] = params['n_fc_1'] if 'n_fc_1' in params else 16
-            params['n_fc_2'] = params['n_fc_2'] if 'n_fc_2' in params else 16
-
-            params['batch_norm'] = bool(params['batch_norm'])
-            params['global_avg_pooling'] = bool(params['global_avg_pooling'])
-
-            trial_name = '{}-{}'.format(self._id, self._num_evals)
-            params['id'] = trial_name
-
-
-            trial = self._experiment.new_trial(GeneratorRun([Arm(params, name=trial_name)]))
-            data = self._experiment.eval_trial(trial)
-            self._num_evals += 1
-
-            acc = float(data.df[data.df['metric_name'] == 'val_acc_1']['mean'])
-            len = float(data.df[data.df['metric_name'] == 'num_params']['mean'])
-
-            self._fit =[acc, len]
+            result_list = [float(data.df[data.df['metric_name'] == obj]['mean']) for obj in metric_names]
+            result_list = [obj if min_prob else -1 * obj for obj, min_prob in zip(result_list, self.min_objectives)]
+            logger.debug(f'Returned objectives: {result_dict}')
+            self._fit = result_list
 
         return self._fit  # evaluate or return save variable
 
@@ -93,49 +82,58 @@ class Member:
 
     @property
     def budget(self):
-        return self._budget
+        return self._budget['limits'][1]
 
     @budget.setter
     def budget(self, value):
         self._x_changed = True
-        self._budget = value
+        self._budget['limits'][1] = value
 
     @property
     def id(self):
         return self._id
 
-
-    def get_truncated_normal(self,mean=0, sd=1, low=0, upp=10):
+    def get_truncated_normal(self, mean=0, sd=1, low=0, upp=10):
         return truncnorm(
             (low - mean) / sd, (upp - mean) / sd, loc=mean, scale=sd)
 
+    @staticmethod
+    def __fill_missing_hp(cs, configuration) -> Dict:
+        for key in cs.get_hyperparameter_names():
+            if key not in configuration:
+                missing_hp = cs.get_hyperparameter(key)
+                configuration[key] = missing_hp.default_value
+        return configuration
+
     def return_train_data(self):
-
+        # TODO: Explain what happens here.
+        #       The parameters are scaled?
+        #       Binary Values are set to 0/1
+        #       Only numerical values work?
         params = deepcopy(self.x_coordinate)
-        hyperparameter_dict = self._space.get_hyperparameters_dict()
 
-        params['n_conv_0'] = params['n_conv_0'] if 'n_conv_0' in params else 0
-        params['n_conv_1'] = params['n_conv_1'] if 'n_conv_1' in params else 0
-        params['n_conv_2'] = params['n_conv_2'] if 'n_conv_2' in params else 0
+        params = self.__fill_missing_hp(self._space, params)
 
-        params['n_fc_0'] = params['n_fc_0'] if 'n_fc_0' in params else 0
-        params['n_fc_1'] = params['n_fc_1'] if 'n_fc_1' in params else 0
-        params['n_fc_2'] = params['n_fc_2'] if 'n_fc_2' in params else 0
-
+        # TODO: They apply here actually only a max scaling. hp = hp / max_value(hp)
         train_data = []
         for key in params.keys():
+            if key in ['id', self._budget['name']]:
+                continue
 
-            if params[key] == True:
-                param = 1
-            elif params[key] == False:
-                param = 0
+            hp = self._space.get_hyperparameter(key)
+            # They apply a Min Max Scaling to the values.
+            if isinstance(params[key], bool):
+                param = 1 if params[key] else 0
+            elif isinstance(hp, NumericalHyperparameter):
+                lower_lim, upper_lim = hp.lower, hp.upper
+                param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+            # TODO: write stuff for non numerical data.
+            elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
+                choices = np.sort(hp.choices)
+                lower_lim, upper_lim = choices[0], choices[-1]
+                param = (params[key] - lower_lim) / (upper_lim - lower_lim)
             else:
-
-                try:
-                    param = params[key] / hyperparameter_dict[key].upper
-                except:
-                    param = params[key]/ (np.sort(hyperparameter_dict[key].choices)[-1])
-
+                raise ValueError(f'Unknwon Parameter: {param}')
             train_data.append(param)
 
         return train_data
@@ -146,41 +144,35 @@ class Member:
         :return: new member who is based on this member
         """
         new_x = self.x_coordinate.copy()
-        hyperparameter_dict = self._space.get_hyperparameters_dict()
 
         if self._mutation == Mutation.GAUSSIAN:
+            immutable_parameters = list(set([cond.parent.name for cond in self._space.get_conditions()]))
             keys = np.random.choice(list(new_x.keys()), 3, replace=False)
+
             for k in keys:
+                # Immutable parameters are parameters that are parents in a condition
+                hp = self._space.get_hyperparameter(str(k))
 
-                if self._space.is_mutable_hyperparameter(str(k)):
-
+                if hp.name not in immutable_parameters:
                     try:
-
-                        mean = new_x[k]
-                        upper = hyperparameter_dict[k].upper
-                        lower = hyperparameter_dict[k].lower
+                        mean = new_x[hp.name]
+                        upper = hp.upper
+                        lower = hp.lower
                         sd = (upper - lower) / 3
                         X = self.get_truncated_normal(mean=mean, sd=sd, low=lower, upp=upper)
-
-
-                        if str(k) == "lr_init":
-                            new_x[k] = X.rvs()
+                        logger.debug(type(hp))
+                        if isinstance(hp, CS.UniformIntegerHyperparameter):
+                            new_x[hp.name] = int(X.rvs())
                         else:
-                            new_x[k] = int(X.rvs())
-
+                            new_x[hp.name] = X.rvs()
                     except:
-
-                        new_x[k] = self._space.sample_hyperparameter(str(k))
-
+                        new_x[hp.name] = hp.sample(self._space.random)
 
         elif self._mutation != Mutation.NONE:
             # We won't consider any other mutation types
             raise NotImplementedError
 
-        child = Member(self._space, self._mutation,self.budget,
-                       self._experiment, new_x)
+        child = Member(self._space, self._mutation, self._budget,                       self._experiment, new_x)
 
         self._age += 1
         return child
-
-

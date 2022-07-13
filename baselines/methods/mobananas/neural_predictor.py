@@ -1,12 +1,10 @@
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
-from torch.utils.data import DataLoader, Subset
-from sklearn.model_selection import StratifiedKFold   # We use 3-fold stratified cross-validation
 import torch
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, Subset
-from baselines import nDS_index, crowdingDist
+from torch.utils.data import DataLoader
+from MOHPOBenchExperimentUtils import nDS_index, crowdingDist
 import torch.nn.functional as F
+from loguru import logger
+import sys
 
 
 def sort_array(fit):
@@ -24,17 +22,16 @@ def sort_array(fit):
     return sorted_
 
 
-
 class Net(torch.nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_objectives=2):
         super(Net, self).__init__()
 
         self.fc2 = torch.nn.Linear(13, 10)
         torch.nn.init.normal_(self.fc2.weight)
         torch.nn.init.normal_(self.fc2.bias)
 
-        self.fc3 = torch.nn.Linear(10, 2)
+        self.fc3 = torch.nn.Linear(10, num_objectives)
         torch.nn.init.normal_(self.fc3.weight)
         torch.nn.init.normal_(self.fc3.bias)
 
@@ -45,8 +42,6 @@ class Net(torch.nn.Module):
         x = self.fc3(x)
 
         return x
-
-
 
     def train_fn(self, train_data, num_epochs):
         """
@@ -69,15 +64,16 @@ class Net(torch.nn.Module):
             i = 0
             for data in train_loader:
                 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+                self.to(device)
 
-                inputs = torch.stack(data[0]).to(device)
+                inputs = torch.stack(data[0])
                 inputs = torch.transpose(inputs, 0, 1)
-                inputs.type(torch.FloatTensor)
+                inputs = inputs.double().to(device)
 
                 # get the inputs; data is a list of [inputs, labels]
                 y_value = torch.stack(data[1])
                 y_value = torch.transpose(y_value, 0, 1)
-                y_value.type(torch.FloatTensor)
+                y_value = y_value.type(torch.DoubleTensor).to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -92,13 +88,10 @@ class Net(torch.nn.Module):
                 running_loss += loss.item()
 
                 if (epoch + 1) % 20 == 0:
-                    print('[%d] loss: %.2f' %
-                              (epoch + 1, running_loss))
+                    logger.debug('[%d] loss: %.2f' % (epoch + 1, running_loss))
                 running_loss = 0.0
 
         return
-
-
 
     def predict(self, x):
 
@@ -116,10 +109,7 @@ class Net(torch.nn.Module):
             inputs = torch.transpose(inputs, 0, 1)
 
             output = self(inputs)
-
-
         return output
-
 
 
 class Neural_Predictor:
@@ -128,34 +118,27 @@ class Neural_Predictor:
     """
 
     def __init__(self, num_epochs, num_ensamble_nets):
-
         self.num_epochs = num_epochs
         self.num_ensamble_nets = num_ensamble_nets
         self.networks = [Net() for i in range(self.num_ensamble_nets)]
         self.all_architecture = []
 
     def train_models(self, x):
-
-
         for model in self.networks:
             model.train_fn(x, self.num_epochs)
 
-
-
     def ensamble_predict(self, x):
-
+        # We do the scaling inside the MOExpUtils
         predictions = [model.predict(x).tolist()[0] for model in self.networks]
-        predictions = [ [- pred[0]*10, pred[1]] for pred in predictions]
 
-
+        # predictions = [[- pred[0] * 10, pred[1]] for pred in predictions]
+        # TODO: Scale to multiple objectives
+        predictions = [[pred[0], pred[1]] for pred in predictions]
         mean1 = np.mean([pred[0] for pred in predictions])
         mean2 = np.mean([pred[1] for pred in predictions])
         return [mean1, mean2], predictions
 
-
-
     def independent_thompson_sampling_for_mo(self, x, arches_in, num_models):
-
         arches = arches_in.copy()
         mean_list = []
         prediction_list = [[] for _ in range(num_models)]
@@ -163,6 +146,8 @@ class Neural_Predictor:
         for arch in range(len(arches)):
 
             mean, predictions = self.ensamble_predict(x[arch])
+            logger.debug("predicted mean:{}", mean)
+            logger.debug("predictions:{}", predictions)
             mean_list.append(mean)
 
             for i in range(num_models):
@@ -174,7 +159,6 @@ class Neural_Predictor:
         for i in range(num_models):
             fit.append(sort_array(prediction_list[i]))
 
-
         prob_ = []
         for i in range(len(arches_in)):
             prob1 = self.independent_thompson_sampling(sorted_mean[i], [f[i] for f in fit])
@@ -182,19 +166,19 @@ class Neural_Predictor:
 
         return prob_
 
-    def sort_pop(self,list1, list2):
-
+    def sort_pop(self, list1, list2):
         z = []
         for m in list2:
             z.append(list1[int(m)])
-
         return z
 
     def independent_thompson_sampling(self, mean, predictions_fixed):
 
         M = self.num_ensamble_nets
-        squared_differences = np.sum([np.square(np.abs(predictions_fixed[i]) - mean) for i in range(len(predictions_fixed))])
-        var = np.sqrt( (squared_differences) / (M - 1))
+        squared_differences = np.sum(
+            [np.square(np.abs(predictions_fixed[i]) - mean) for i in range(len(predictions_fixed))]
+        )
+        var = np.sqrt((squared_differences) / (M - 1))
         prob = np.random.normal(mean, var)
 
         return prob
@@ -205,7 +189,6 @@ class Neural_Predictor:
 
         arch_lists = []
         probs = self.independent_thompson_sampling_for_mo(test_data, architectures, self.num_ensamble_nets)
-
 
         for _ in range(select_models):
             max_index = probs.index(min(probs))
