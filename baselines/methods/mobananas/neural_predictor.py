@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader
 from MOHPOBenchExperimentUtils import nDS_index, crowdingDist
 import torch.nn.functional as F
 from loguru import logger
-import sys
 
 
 def sort_array(fit):
@@ -24,10 +23,10 @@ def sort_array(fit):
 
 class Net(torch.nn.Module):
 
-    def __init__(self, num_objectives=2):
+    def __init__(self, num_input_parameters, num_objectives=2):
         super(Net, self).__init__()
 
-        self.fc2 = torch.nn.Linear(13, 10)
+        self.fc2 = torch.nn.Linear(num_input_parameters, 10)
         torch.nn.init.normal_(self.fc2.weight)
         torch.nn.init.normal_(self.fc2.bias)
 
@@ -87,9 +86,8 @@ class Net(torch.nn.Module):
                 # print statistics
                 running_loss += loss.item()
 
-                if (epoch + 1) % 20 == 0:
-                    logger.debug('[%d] loss: %.2f' % (epoch + 1, running_loss))
-                running_loss = 0.0
+            if (epoch + 1) % 20 == 0:
+                logger.debug('[%d] loss: %.10f' % (epoch + 1,  running_loss / len(train_data)))
 
         return
 
@@ -117,10 +115,11 @@ class Neural_Predictor:
     Class to group ensamble of NN
     """
 
-    def __init__(self, num_epochs, num_ensemble_nets):
+    def __init__(self, num_input_parameters, num_objectives, num_epochs, num_ensemble_nets):
         self.num_epochs = num_epochs
         self.num_ensemble_nets = num_ensemble_nets
-        self.networks = [Net() for i in range(self.num_ensemble_nets)]
+        self.networks = [Net(num_input_parameters=num_input_parameters, num_objectives=num_objectives)
+                         for _ in range(self.num_ensemble_nets)]
         self.all_architecture = []
 
     def train_models(self, x):
@@ -143,25 +142,27 @@ class Neural_Predictor:
         mean_list = []
         prediction_list = [[] for _ in range(num_models)]
 
-        for arch in range(len(arches)):
-
-            mean, predictions = self.ensamble_predict(x[arch])
-            logger.debug("predicted mean:{}", mean)
-            logger.debug("predictions:{}", predictions)
+        # for the possible new configurations, ask the ensemble about the potential performance.
+        for i_arch in range(len(arches_in)):
+            # mean = mean pred. perf of param 1, mean predicted performance for param 2
+            # mean = 1 x N_objectives | predictions: n_models x n_objectives
+            mean, predictions = self.ensamble_predict(x[i_arch])
             mean_list.append(mean)
 
+            # Collect for each model the predicted performances. [pred model 1, pred model 2, pred model 3, ...]
             for i in range(num_models):
                 prediction_list[i].extend([predictions[i]])
 
-        sorted_mean = sort_array(mean_list)
+        # mean_list: Num Configs X Num Objectives -> For each config the mean prediction of the neural predictors
+        mean_ordering = sort_array(mean_list)  # sort means wrt crowding dist + nds. Return indices
 
-        fit = []
-        for i in range(num_models):
-            fit.append(sort_array(prediction_list[i]))
+        predictions_ordering_per_model = []
+        for i in range(num_models):  # Does this make sense? Order the configurations of each ensemble member? potentially different orderings.
+            predictions_ordering_per_model.append(sort_array(prediction_list[i]))  # sort predictions of a model wrt to nds + crowding distance.
 
         prob_ = []
         for i in range(len(arches_in)):
-            prob1 = self.independent_thompson_sampling(sorted_mean[i], [f[i] for f in fit])
+            prob1 = self.independent_thompson_sampling(mean_ordering[i], [order[i] for order in predictions_ordering_per_model])
             prob_.append(prob1)
 
         return prob_
@@ -173,12 +174,12 @@ class Neural_Predictor:
         return z
 
     def independent_thompson_sampling(self, mean, predictions_fixed):
+        mean = np.array(mean)
+        predictions_fixed = np.array(predictions_fixed)
 
         M = self.num_ensemble_nets
-        squared_differences = np.sum(
-            [np.square(np.abs(predictions_fixed[i]) - mean) for i in range(len(predictions_fixed))]
-        )
-        var = np.sqrt((squared_differences) / (M - 1))
+        squared_differences = np.sum(np.square(predictions_fixed - mean))
+        var = np.sqrt(squared_differences / (M - 1))
         prob = np.random.normal(mean, var)
 
         return prob

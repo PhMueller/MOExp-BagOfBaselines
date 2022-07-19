@@ -1,8 +1,4 @@
-import os
 import numpy as np
-import torch
-import sys
-
 from MOHPOBenchExperimentUtils import nDS_index, crowdingDist
 
 from baselines.methods.mobananas.neural_predictor import Neural_Predictor
@@ -16,7 +12,7 @@ class BANANAS:
 
     def __init__(self, neural_predictor, experiment, search_space,
                  initial_samples, num_arch, budget, select_models, function_evaluations,
-                 scale_factor = 1, mutation_type = Mutation.GAUSSIAN, seed=0):
+                 mutation_type=Mutation.GAUSSIAN, seed=0):
 
         self.num_arch = num_arch
         self.num_function_evaluations = function_evaluations
@@ -59,32 +55,31 @@ class BANANAS:
             best_configs = self._select_best_architectures_mo(self.num_arch)
             mutated_configs = [member.mutate() for member in best_configs]
             test_data = [member.return_train_data() for member in mutated_configs]
-            chosen_models = self.neural_predictor.choose_models(mutated_configs,test_data, self.select)
+            chosen_models = self.neural_predictor.choose_models(mutated_configs, test_data, self.select)
             [member.fitness for member in chosen_models]
 
             self.architecture_list.extend(chosen_models)
 
         return
 
-    def sort_pop(self,list1, list2):
+    def sort_pop(self, list1, list2):
 
         z = [list1[int(m)] for m in list2]
         return z
 
     def _select_best_architectures_mo(self, num_arch):
 
-            index_list = np.array(list(range(len(self.architecture_list))))
-            fitness = [member.fitness for member in self.architecture_list]
-            a, index_return_list = nDS_index(np.array(fitness), index_list)
-            b, sort_index = crowdingDist(a, index_return_list)
+        index_list = np.array(list(range(len(self.architecture_list))))
+        fitness = [member.fitness for member in self.architecture_list]
+        a, index_return_list = nDS_index(np.array(fitness), index_list)
+        b, sort_index = crowdingDist(a, index_return_list)
 
-            sorted = []
+        sorted = []
+        for x in sort_index:
+            sorted.extend(x)
 
-            for x in sort_index:
-                sorted.extend(x)
-
-            self.architecture_list = self.sort_pop(self.architecture_list, sorted)
-            return self.architecture_list[0:num_arch]
+        self.architecture_list = self.sort_pop(self.architecture_list, sorted)
+        return self.architecture_list[0:num_arch]
 
 
 def get_MOBANANAS(experiment, search_space, evaluate_network, budget = 25, initial_samples = 20,

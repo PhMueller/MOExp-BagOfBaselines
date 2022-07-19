@@ -66,7 +66,7 @@ class Member:
 
             result_list = [float(data.df[data.df['metric_name'] == obj]['mean']) for obj in metric_names]
             result_list = [obj if min_prob else -1 * obj for obj, min_prob in zip(result_list, self.min_objectives)]
-            logger.debug(f'Returned objectives: {result_dict}')
+            logger.debug(f'Returned objectives: {metric_names} - {result_list}')
             self._fit = result_list
 
         return self._fit  # evaluate or return save variable
@@ -121,19 +121,28 @@ class Member:
                 continue
 
             hp = self._space.get_hyperparameter(key)
+
+            if isinstance(hp, CS.Constant):
+                # Remove the constant parameters from the configuration: (do not add to train_data)
+                continue
+
             # They apply a Min Max Scaling to the values.
-            if isinstance(params[key], bool):
+            elif isinstance(params[key], bool):
                 param = 1 if params[key] else 0
+
             elif isinstance(hp, NumericalHyperparameter):
                 lower_lim, upper_lim = hp.lower, hp.upper
                 param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+
             # TODO: write stuff for non numerical data.
+
             elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
                 choices = np.sort(hp.choices)
                 lower_lim, upper_lim = choices[0], choices[-1]
                 param = (params[key] - lower_lim) / (upper_lim - lower_lim)
             else:
-                raise ValueError(f'Unknwon Parameter: {param}')
+                raise ValueError(f'Unsupported Parameter type: {key}: {type(params[key])}')
+
             train_data.append(param)
 
         return train_data
@@ -144,10 +153,11 @@ class Member:
         :return: new member who is based on this member
         """
         new_x = self.x_coordinate.copy()
+        new_x = {k: v for k, v in new_x.items() if not isinstance(self._space.get_hyperparameter(k), CS.Constant)}
 
         if self._mutation == Mutation.GAUSSIAN:
             immutable_parameters = list(set([cond.parent.name for cond in self._space.get_conditions()]))
-            keys = np.random.choice(list(new_x.keys()), 3, replace=False)
+            keys = np.random.choice(list(new_x.keys()), min(len(new_x), 3), replace=False)
 
             for k in keys:
                 # Immutable parameters are parameters that are parents in a condition
@@ -160,7 +170,6 @@ class Member:
                         lower = hp.lower
                         sd = (upper - lower) / 3
                         X = self.get_truncated_normal(mean=mean, sd=sd, low=lower, upp=upper)
-                        logger.debug(type(hp))
                         if isinstance(hp, CS.UniformIntegerHyperparameter):
                             new_x[hp.name] = int(X.rvs())
                         else:
@@ -172,7 +181,7 @@ class Member:
             # We won't consider any other mutation types
             raise NotImplementedError
 
-        child = Member(self._space, self._mutation, self._budget,                       self._experiment, new_x)
+        child = Member(self._space, self._mutation, self._budget, self._experiment, new_x)
 
         self._age += 1
         return child

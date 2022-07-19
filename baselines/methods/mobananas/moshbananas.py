@@ -1,6 +1,3 @@
-import sys
-import time
-from loguru import logger
 from .neural_predictor import Neural_Predictor
 import numpy as np
 from .member import Member
@@ -15,7 +12,7 @@ class BANANAS:
     """
 
     def __init__(self, neural_predictor, experiment, search_space,
-                 initial_samples, num_arch, fidelity, eta,
+                 initial_samples, num_arch, budget, eta,
                  select_models, function_evaluations, mutation_type=Mutation.GAUSSIAN,
                  seed=0):
 
@@ -27,8 +24,8 @@ class BANANAS:
         self.neural_predictor = neural_predictor
         self.fidelity = budget  # dict with {'name': <NAME>, 'limits': [<LOWER>, <UPPER>]
 
-        self.max_budget = budget['limit'][1]
-        self.min_budget = budget['limit'][0]
+        self.max_budget = budget['limits'][1]
+        self.min_budget = budget['limits'][0]
         self.eta = eta
 
         np.random.seed(seed)
@@ -40,6 +37,7 @@ class BANANAS:
         ]
 
         # [Member.fitness for Member in self.architecture_list]
+        self.iterations = (self.num_function_evaluations - self.initial_samples) // self.select
 
     def steps(self):
 
@@ -75,7 +73,11 @@ class BANANAS:
         b = max_budget
         while b > min_budget:
             budgets.append(b)
-            b = math.ceil(b / eta)
+            b = b / eta
+
+            # Assume integer fidelities
+            if min_budget > 1:
+                b = math.ceil(b)
 
         return budgets
 
@@ -90,7 +92,7 @@ class BANANAS:
 
             fit = [member.fitness for member in members]
             members = self.sort_architectures(members)
-            members = members[0:len(members) // eta]
+            members = members[0:max(1, len(members) // eta)]
 
         return members
 
@@ -111,9 +113,7 @@ class BANANAS:
         return architectures
 
     def sort_pop(self, list1, list2):
-
         z = [list1[int(m)] for m in list2]
-
         return z
 
     def _select_best_architectures_mo(self, num_arch):
@@ -124,12 +124,10 @@ class BANANAS:
         b, sort_index = crowdingDist(a, index_return_list)
 
         sorted = []
-
         for x in sort_index:
             sorted.extend(x)
 
         self.architecture_list = self.sort_pop(self.architecture_list, sorted)
-
         return self.architecture_list[0:num_arch]
 
 
