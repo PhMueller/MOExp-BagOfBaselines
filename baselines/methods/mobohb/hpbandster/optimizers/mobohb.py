@@ -10,8 +10,8 @@ from baselines.methods.mobohb.hpbandster.optimizers.config_generators.mobohb_cfg
 
 
 class MOBOHB(Master):
-    def __init__(self, configspace=None, parameters=None, history_dir=None, init=True,
-                 eta=2, min_budget=0.01, max_budget=1,
+    def __init__(self, max_budget, configspace=None, parameters=None, history_dir=None, init=True,
+                 eta=2, min_budget=0.01,
                  min_points_in_model=None, top_n_percent=10,
                  num_samples=24, random_fraction=1 / 6, bandwidth_factor=3,
                  min_bandwidth=1e-3,
@@ -75,6 +75,7 @@ class MOBOHB(Master):
             raise ValueError("You have to provide a valid CofigSpace object")
 
         cg = CG_MOBOHB(configspace=configspace,
+                       max_budget=max_budget,
                        parameters=parameters,
                        history_dir=history_dir,
                        run_id=kwargs['run_id'],
@@ -143,7 +144,7 @@ class MOBOHB(Master):
 
         if self.init_m:
             self.init_m = False
-            return (SuccessiveHalvingMOBOHB(HPB_iter=iteration, num_configs=[self.init_m_init], budgets=[25]*self.init_m_init,
+            return (SuccessiveHalvingMOBOHB(HPB_iter=iteration, num_configs=[self.init_m_init], budgets=[self.max_budget]*self.init_m_init,
                                             config_sampler=self.config_generator.get_config, **iteration_kwargs))
         return (SuccessiveHalvingMOBOHB(HPB_iter=iteration, num_configs=ns, budgets=self.budgets[(-s - 1):],
                                         config_sampler=self.config_generator.get_config, **iteration_kwargs))
