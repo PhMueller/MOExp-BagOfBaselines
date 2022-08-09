@@ -9,8 +9,8 @@ import ConfigSpace.util
 import numpy as np
 import scipy.stats as sps
 
-from hpbandster.core.base_config_generator import base_config_generator
-from hpbandster.optimizers.kde.mvkde import MultivariateKDE
+from baselines.methods.mobohb.hpbandster.core.base_config_generator import base_config_generator
+from baselines.methods.mobohb.hpbandster.optimizers.kde.mvkde import MultivariateKDE
 
 class H2BO(base_config_generator):
 	def __init__(self, configspace, min_points_in_model = None,

@@ -1,4 +1,4 @@
-from hpbandster.core.base_config_generator import base_config_generator
+from baselines.methods.mobohb.hpbandster.core.base_config_generator import base_config_generator
 
 
 

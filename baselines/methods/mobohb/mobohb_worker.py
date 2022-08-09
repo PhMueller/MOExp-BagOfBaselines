@@ -1,9 +1,4 @@
-from copy import deepcopy
-
-from ax import Data, GeneratorRun, Arm
-import pandas as pd
-
-from hpbandster.core.worker import Worker
+from baselines.methods.mobohb.hpbandster.core.worker import Worker
 import ConfigSpace as CS
 import numpy as np
 

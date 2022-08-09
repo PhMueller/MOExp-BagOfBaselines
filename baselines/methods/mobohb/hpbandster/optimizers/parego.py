@@ -8,9 +8,9 @@ import numpy as np
 
 import ConfigSpace as CS
 
-from hpbandster.core.master import Master
-from hpbandster.optimizers.iterations import SuccessiveHalvingParEGO
-from hpbandster.optimizers.config_generators.parego import ParEGO as CG_PAREGO
+from baselines.methods.mobohb.hpbandster.core.master import Master
+from baselines.methods.mobohb.hpbandster.optimizers.iterations import SuccessiveHalvingParEGO
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.parego import ParEGO as CG_PAREGO
 
 
 class ParEGO(Master):

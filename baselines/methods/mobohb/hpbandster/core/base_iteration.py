@@ -7,7 +7,7 @@ import pdb
 import hashlib
 import os
 
-from hpbandster.core.dispatcher import Job
+from baselines.methods.mobohb.hpbandster.core.dispatcher import Job
 
 
 class Datum(object):

@@ -9,9 +9,9 @@ import numpy as np
 
 import ConfigSpace as CS
 
-from hpbandster.core.master import Master
-from hpbandster.optimizers.iterations import SuccessiveHalving
-from hpbandster.optimizers.config_generators.bohb import BOHB as CG_BOHB
+from baselines.methods.mobohb.hpbandster.core.master import Master
+from baselines.methods.mobohb.hpbandster.optimizers.iterations import SuccessiveHalving
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.bohb import BOHB as CG_BOHB
 
 class BOHB(Master):
 	def __init__(self, configspace = None,

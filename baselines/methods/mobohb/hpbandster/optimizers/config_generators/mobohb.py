@@ -6,8 +6,8 @@ import ConfigSpace.hyperparameters
 import ConfigSpace.util
 import numpy as np
 
-from hpbandster.core.base_config_generator import base_config_generator
-from hpbandster.optimizers.config_generators.mobohb_utils import TPESampler, GammaFunction, default_weights
+from baselines.methods.mobohb.hpbandster.core.base_config_generator import base_config_generator
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.mobohb_utils import TPESampler, GammaFunction, default_weights
 
 
 class MOBOHB(base_config_generator):

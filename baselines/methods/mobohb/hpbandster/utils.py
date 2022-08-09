@@ -6,8 +6,8 @@ import Pyro4
 import Pyro4.naming
 
 
-from hpbandster.core.result import Result
-from hpbandster.core.base_iteration import Datum
+from baselines.methods.mobohb.hpbandster.core.result import Result
+from baselines.methods.mobohb.hpbandster.core.base_iteration import Datum
 
 
 

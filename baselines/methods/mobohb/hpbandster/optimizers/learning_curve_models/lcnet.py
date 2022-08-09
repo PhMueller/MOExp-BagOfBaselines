@@ -1,6 +1,6 @@
 import numpy as np
 
-from hpbandster.learning_curve_models.base import LCModel
+from baselines.methods.mobohb.hpbandster.learning_curve_models.base import LCModel
 
 from robo.models.lcnet import LCNet, get_lc_net
 

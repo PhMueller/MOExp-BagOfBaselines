@@ -1,6 +1,6 @@
 import sys
 
-from hpbandster.iterations.base import BaseIteration
+from baselines.methods.mobohb.hpbandster.iterations.base import BaseIteration
 
 import numpy as np
 

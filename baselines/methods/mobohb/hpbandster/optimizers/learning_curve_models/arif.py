@@ -4,7 +4,7 @@ sys.path.append("../../")
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor as rfr
 
-from hpbandster.learning_curve_models.base import LCModel as lcm_base
+from baselines.methods.mobohb.hpbandster.learning_curve_models.base import LCModel as lcm_base
 
 from IPython import embed
 

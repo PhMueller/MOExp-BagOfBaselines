@@ -11,7 +11,7 @@ import scipy.optimize as spo
 import statsmodels.api as sm
 import csv
 
-from hpbandster.core.base_config_generator import base_config_generator
+from baselines.methods.mobohb.hpbandster.core.base_config_generator import base_config_generator
 
 
 class ParEGO(base_config_generator):

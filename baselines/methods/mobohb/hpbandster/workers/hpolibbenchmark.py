@@ -1,6 +1,6 @@
 
 import ConfigSpace as CS
-from hpbandster.core.worker import Worker
+from baselines.methods.mobohb.hpbandster.core.worker import Worker
 
 class HPOlib2Worker(Worker):
 	def __init__(self,benchmark, configspace=None, budget_name='budget', budget_preprocessor=None, measure_test_loss=False, config_as_array=True, **kwargs):

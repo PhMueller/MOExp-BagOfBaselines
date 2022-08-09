@@ -9,9 +9,9 @@ import logging
 import numpy as np
 
 
-from hpbandster.core.dispatcher import Dispatcher
-from hpbandster.core.result import Result
-from hpbandster.core.base_iteration import WarmStartIteration
+from baselines.methods.mobohb.hpbandster.core.dispatcher import Dispatcher
+from baselines.methods.mobohb.hpbandster.core.result import Result
+from baselines.methods.mobohb.hpbandster.core.base_iteration import WarmStartIteration
 
 
 

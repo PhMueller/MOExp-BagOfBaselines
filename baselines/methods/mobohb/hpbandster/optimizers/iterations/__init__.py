@@ -1,3 +1,3 @@
-from hpbandster.optimizers.iterations.successivehalving import SuccessiveHalving
-from hpbandster.optimizers.iterations.sucessivehalvingmobohb import SuccessiveHalvingMOBOHB
-from hpbandster.optimizers.iterations.successivehalvingparego import SuccessiveHalvingParEGO
+from baselines.methods.mobohb.hpbandster.optimizers.iterations.successivehalving import SuccessiveHalving
+from baselines.methods.mobohb.hpbandster.optimizers.iterations.sucessivehalvingmobohb import SuccessiveHalvingMOBOHB
+from baselines.methods.mobohb.hpbandster.optimizers.iterations.successivehalvingparego import SuccessiveHalvingParEGO

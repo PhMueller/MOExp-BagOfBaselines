@@ -1,16 +1,12 @@
-import os
-import time
-import math
-import copy
-import logging
-
 import numpy as np
 
 import ConfigSpace as CS
 
-from hpbandster.core.master import Master
-from hpbandster.optimizers.iterations import SuccessiveHalvingMOBOHB
-from hpbandster.optimizers.config_generators.mobohb import MOBOHB as CG_MOBOHB
+from baselines.methods.mobohb.hpbandster.core.master import Master
+from baselines.methods.mobohb.hpbandster.optimizers.iterations.sucessivehalvingmobohb import \
+    SuccessiveHalvingMOBOHB
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.mobohb_cfg import \
+    MOBOHB_CFG as CG_MOBOHB
 
 
 class MOBOHB(Master):

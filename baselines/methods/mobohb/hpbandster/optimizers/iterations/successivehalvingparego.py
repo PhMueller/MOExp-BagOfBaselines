@@ -1,5 +1,5 @@
 import numpy as np
-from hpbandster.core.base_iteration import BaseIteration
+from baselines.methods.mobohb.hpbandster.core.base_iteration import BaseIteration
 
 class SuccessiveHalvingParEGO(BaseIteration):
 

@@ -9,9 +9,9 @@ import numpy as np
 
 import ConfigSpace as CS
 
-from hpbandster.core.master import Master
-from hpbandster.optimizers.iterations import SuccessiveHalving
-from hpbandster.optimizers.config_generators.h2bo import H2BO as CG_H2BO
+from baselines.methods.mobohb.hpbandster.core.master import Master
+from baselines.methods.mobohb.hpbandster.optimizers.iterations import SuccessiveHalving
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.h2bo import H2BO as CG_H2BO
 
 class H2BO(Master):
 	def __init__(self,

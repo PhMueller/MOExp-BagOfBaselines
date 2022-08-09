@@ -1,1 +1,1 @@
-from hpbandster.optimizers.config_generators.random_sampling import RandomSampling
+from baselines.methods.mobohb.hpbandster.optimizers.config_generators.random_sampling import RandomSampling

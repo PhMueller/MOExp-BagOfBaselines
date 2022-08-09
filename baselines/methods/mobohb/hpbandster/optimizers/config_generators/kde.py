@@ -3,7 +3,7 @@ import numpy as np
 import scipy.stats as sps
 import statsmodels.api as sm
 
-from hpbandster.config_generators.base import base_config_generator
+from baselines.methods.mobohb.hpbandster.config_generators.base import base_config_generator
 
 
 class KernelDensityEstimator(base_config_generator):
