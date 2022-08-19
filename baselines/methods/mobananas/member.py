@@ -6,7 +6,7 @@ import ConfigSpace as CS
 from ConfigSpace.hyperparameters import NumericalHyperparameter, CategoricalHyperparameter, OrdinalHyperparameter
 
 import numpy as np
-from typing import Dict, Optional, Callable, Union
+from typing import Dict, Optional, Callable, Union, List
 from ax import Experiment, GeneratorRun, Arm
 from scipy.stats import truncnorm
 from MOHPOBenchExperimentUtils.utils import adapt_configspace_configuration_to_ax_space
@@ -37,7 +37,9 @@ def normalize_parameters(params: Dict, configuration_space: CS.ConfigurationSpac
         # TODO: write stuff for non numerical data.
         elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
             if isinstance(hp.choices[0], str):
-                param = hp.choices.index(params[key]) / len(hp.choices)
+                param = [0 for _ in range(hp.num_choices)]  # dummy encoding for categorical data
+                param[hp.choices.index(params[key])] = 1
+                # param = hp.choices.index(params[key]) / len(hp.choices)
             else:
                choices = np.sort(hp.choices)
                lower_lim, upper_lim = choices[0], choices[-1]
@@ -193,8 +195,13 @@ class Member:
         normalized_params = normalize_parameters(
             params=params, configuration_space=self._space, fidelity_name=self._budget['name']
         )
-        normalized_params = [normalized_params[hp_name] for hp_name in self._space.get_hyperparameter_names()]
-        return normalized_params
+        normalized_params_list = []
+        for hp_name in self._space.get_hyperparameter_names():
+            if isinstance(normalized_params[hp_name], List):
+                normalized_params_list.extend(normalized_params[hp_name])
+            else:
+                normalized_params_list.append(normalized_params[hp_name])
+        return normalized_params_list
 
     def mutate(self):
         """
