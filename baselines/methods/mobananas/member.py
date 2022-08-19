@@ -14,6 +14,81 @@ from MOHPOBenchExperimentUtils.utils import adapt_configspace_configuration_to_a
 from loguru import logger
 
 
+def normalize_parameters(params: Dict, configuration_space: CS.ConfigurationSpace, fidelity_name) -> Dict:
+    normlized_parameters = {}
+    for key in params.keys():
+        if key in ['id', fidelity_name]:
+            continue
+
+        hp = configuration_space.get_hyperparameter(key)
+
+        if isinstance(hp, CS.Constant):
+            # Remove the constant parameters from the configuration: (do not add to train_data)
+            continue
+
+        # They apply a Min Max Scaling to the values.
+        elif isinstance(params[key], bool):
+            param = 1 if params[key] else 0
+
+        elif isinstance(hp, NumericalHyperparameter):
+            lower_lim, upper_lim = hp.lower, hp.upper
+            param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+
+        # TODO: write stuff for non numerical data.
+        elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
+            if isinstance(hp.choices[0], str):
+                param = hp.choices.index(params[key]) / len(hp.choices)
+            else:
+               choices = np.sort(hp.choices)
+               lower_lim, upper_lim = choices[0], choices[-1]
+               param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+
+        else:
+            raise ValueError(f'Unsupported Parameter type: {key}: {type(params[key])}')
+
+        normlized_parameters[key] = param
+    return normlized_parameters
+
+
+def inverse_normalize_configuration(normalized_params: Dict, configuration_space: CS.ConfigurationSpace) -> Dict:
+    orig_parameters = {}
+    for key in normalized_params.keys():
+
+        hp = configuration_space.get_hyperparameter(key)
+        param = normalized_params[param]
+        # They apply a Min Max Scaling to the values.
+        # if isinstance(params[key], bool):
+        #     param = 1 if params[key] else 0
+
+        if isinstance(hp, NumericalHyperparameter):
+            lower_lim, upper_lim = hp.lower, hp.upper
+            # param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+            param = (param * (upper_lim - lower_lim)) + lower_lim
+
+        # TODO: write stuff for non numerical data.
+        elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
+            if isinstance(hp.choices[0], bool):
+                param = param == 1
+
+            elif isinstance(hp.choices[0], 'str'):
+                index = param * len(hp.choices)
+                index = np.rint(index).clip(min=0, max=len(hp.choices) - 1)
+                param = hp.choices[index]
+                # param = hp.choices.index(params[key]) / len(hp.choices)
+
+            else:
+                choices = np.sort(hp.choices)
+                lower_lim, upper_lim = choices[0], choices[-1]
+                param = (param * (upper_lim - lower_lim)) + lower_lim
+                # param = (params[key] - lower_lim) / (upper_lim - lower_lim)
+
+        else:
+            raise ValueError(f'Unsupported Parameter type: {key}: {type(param)}')
+
+        orig_parameters[key] = param
+    return orig_parameters
+
+
 class Mutation(enum.IntEnum):
     NONE = -1  # Can be used when only recombination is required
     UNIFORM = 0  # Uniform mutation
@@ -115,37 +190,11 @@ class Member:
         params = self.__fill_missing_hp(self._space, params)
 
         # TODO: They apply here actually only a max scaling. hp = hp / max_value(hp)
-        train_data = []
-        for key in params.keys():
-            if key in ['id', self._budget['name']]:
-                continue
-
-            hp = self._space.get_hyperparameter(key)
-
-            if isinstance(hp, CS.Constant):
-                # Remove the constant parameters from the configuration: (do not add to train_data)
-                continue
-
-            # They apply a Min Max Scaling to the values.
-            elif isinstance(params[key], bool):
-                param = 1 if params[key] else 0
-
-            elif isinstance(hp, NumericalHyperparameter):
-                lower_lim, upper_lim = hp.lower, hp.upper
-                param = (params[key] - lower_lim) / (upper_lim - lower_lim)
-
-            # TODO: write stuff for non numerical data.
-
-            elif isinstance(hp, (CategoricalHyperparameter, OrdinalHyperparameter)):
-                choices = np.sort(hp.choices)
-                lower_lim, upper_lim = choices[0], choices[-1]
-                param = (params[key] - lower_lim) / (upper_lim - lower_lim)
-            else:
-                raise ValueError(f'Unsupported Parameter type: {key}: {type(params[key])}')
-
-            train_data.append(param)
-
-        return train_data
+        normalized_params = normalize_parameters(
+            params=params, configuration_space=self._space, fidelity_name=self._budget['name']
+        )
+        normalized_params = [normalized_params[hp_name] for hp_name in self._space.get_hyperparameter_names()]
+        return normalized_params
 
     def mutate(self):
         """
