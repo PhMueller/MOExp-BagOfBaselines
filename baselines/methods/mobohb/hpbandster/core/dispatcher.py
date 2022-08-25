@@ -323,6 +323,9 @@ class Dispatcher(object):
 			job.result = result['result']
 			job.exception = result['exception']
 
+			if job.exception is not None and job.exception == 'LIMIT_REACHED':
+				raise TimeoutError
+
 			self.logger.debug('DISPATCHER: job %s on %s finished'%(str(job.id),job.worker_name))
 			self.logger.debug(str(job))
 			

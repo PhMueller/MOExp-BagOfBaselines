@@ -79,7 +79,7 @@ class MOBOHB(Master):
                        parameters=parameters,
                        history_dir=history_dir,
                        run_id=kwargs['run_id'],
-                       init=init,
+                       init=init if min_budget != max_budget else False,
                        min_points_in_model=min_points_in_model,
                        top_n_percent=top_n_percent,
                        num_samples=num_samples,

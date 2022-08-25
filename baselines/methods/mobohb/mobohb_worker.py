@@ -2,6 +2,8 @@ from baselines.methods.mobohb.hpbandster.core.worker import Worker
 import ConfigSpace as CS
 import numpy as np
 
+from ax import ParameterType
+
 
 class MOBOHBWorker(Worker):
     def __init__(self, experiment, fidelity: str, search_space, seed=0, **kwargs):
@@ -22,9 +24,12 @@ class MOBOHBWorker(Worker):
         rho_sum_wf = rho * np.sum(w_f)
         return max_k + rho_sum_wf
 
-    def compute(self, config_id:int, config: CS.Configuration, budget:float, working_directory:str, *args, **kwargs) -> dict:
+    def compute(self, config_id:int, config: CS.Configuration, budget: float, working_directory:str, *args, **kwargs) -> dict:
 
-        fidelity = {self.fidelity['name']: budget}
+        if self.experiment.search_space.parameters[self.fidelity['name']].parameter_type == ParameterType.INT:
+            fidelity = {self.fidelity['name']: int(budget)}
+        else:
+            fidelity = {self.fidelity['name']: budget}
 
         # Map numeric (cat.) hp back to their categories
         for hp, value in config.items():

@@ -147,7 +147,7 @@ class Worker(object):
 		if len(dispatchers) == 0:
 			self.logger.debug('WORKER: No dispatcher found. Waiting for one to initiate contact.')
 
-		self.logger.info('WORKER: start listening for jobs')
+		self.logger.debug('WORKER: start listening for jobs')
 
 		self.pyro_daemon = Pyro4.core.Daemon(host=self.host)
 
@@ -199,12 +199,17 @@ class Worker(object):
 			self.busy = True
 		if not self.timeout is None and not self.timer is None:
 			self.timer.cancel()
-		self.logger.info('WORKER: start processing job %s'%str(id))
+		self.logger.debug('WORKER: start processing job %s'%str(id))
 		self.logger.debug('WORKER: args: %s'%(str(args)))
 		self.logger.debug('WORKER: kwargs: %s'%(str(kwargs)))
 		try:
 			result = {'result': self.compute(*args, config_id=id, **kwargs),
 						'exception' : None}
+
+		except TimeoutError as e:
+			print('WORKER SHUTDOWN DUE TO TIME LIMIT.')
+			result = {'result': None,
+					  'exception' : 'LIMIT_REACHED'}
 		except Exception as e:
 			result = {'result': None,
 						'exception' : traceback.format_exc()}
@@ -214,7 +219,7 @@ class Worker(object):
 				self.busy =  False
 				callback.register_result(id, result)
 				self.thread_cond.notify()
-		self.logger.info('WORKER: registered result for job %s with dispatcher'%str(id))
+		self.logger.debug('WORKER: registered result for job %s with dispatcher'%str(id))
 		if not self.timeout is None:
 			self.timer = threading.Timer(self.timeout, self.shutdown)
 			self.timer.daemon=True

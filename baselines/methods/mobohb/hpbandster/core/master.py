@@ -257,6 +257,11 @@ class Master(object):
 			self.logger.debug('job_callback for %s got condition'%str(job.id))
 			self.num_running_jobs -= 1
 
+			if job.exception == 'LIMIT_REACHED':
+				print('MASTER SHUTDOWN DUE TO TIME LIMIT.')
+				self.shutdown(shutdown_workers=True)
+				raise TimeoutError()
+
 			if not self.result_logger is None:
 				self.result_logger(job)
 			self.iterations[job.id[0]].register_result(job)
